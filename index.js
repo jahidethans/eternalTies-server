@@ -31,6 +31,7 @@ async function run() {
 
     const biodataCollection = client.db('eternalDb').collection('biodatas');
 
+    // get biodata and filter
     app.get('/biodatas', async (req, res) => {
       try {
         const { minAge, maxAge, biodataType, permanentDivision } = req.query;
@@ -55,6 +56,37 @@ async function run() {
         res.status(500).send('Internal Server Error');
       }
     });
+    
+    // get biodata and filter for biodataType
+    app.get('/biodatas', async (req, res) => {
+      try {
+        const { biodataType } = req.query;
+        console.log(biodataType);
+    
+        // Build the filter object based on the provided query parameters
+        const filter = {};
+        
+        if (biodataType) {
+          filter.biodataType = biodataType;
+        }
+        const cursor = biodataCollection.find(filter);
+        const result = await cursor.toArray();
+        res.send(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send('Internal Server Error');
+      }
+    });
+
+    // get one requested biodata by id
+    app.get('/biodatas/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await biodataCollection.findOne(query);
+      res.send(result)
+    })
+
+    
 
 
 
