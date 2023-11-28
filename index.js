@@ -31,12 +31,30 @@ async function run() {
 
     const biodataCollection = client.db('eternalDb').collection('biodatas');
 
-     // show all available biodatas
-     app.get('/biodatas', async (req, res) => {
-      const cursor = biodataCollection.find();
-      const result = await cursor.toArray();
-      res.send(result);
-    })
+    app.get('/biodatas', async (req, res) => {
+      try {
+        const { minAge, maxAge, biodataType, permanentDivision } = req.query;
+    
+        // Build the filter object based on the provided query parameters
+        const filter = {};
+        if (minAge && maxAge) {
+          filter.age = { $gte: parseInt(minAge), $lte: parseInt(maxAge) };
+        }
+        if (biodataType) {
+          filter.biodataType = biodataType;
+        }
+        if (permanentDivision) {
+          filter.permanentDivision = permanentDivision;
+        }
+    
+        const cursor = biodataCollection.find(filter);
+        const result = await cursor.toArray();
+        res.send(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send('Internal Server Error');
+      }
+    });
 
 
 
