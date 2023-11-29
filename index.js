@@ -6,7 +6,12 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 //middleware
-app.use(cors());
+const corsOptions ={
+  origin:'http://localhost:5173', 
+  credentials:true,            //access-control-allow-credentials:true
+  optionSuccessStatus:200,
+}
+app.use(cors(corsOptions))
 app.use(express.json());
 
 
@@ -29,8 +34,42 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
 
+    const userCollection = client.db('eternalDb').collection('users');
     const biodataCollection = client.db('eternalDb').collection('biodatas');
     const favouriteCollection = client.db('eternalDb').collection('favourites');
+
+    // users related API
+
+    app.get('/users', async(req, res)=>{
+      const result = await userCollection.find().toArray();
+      res.send(result);
+    })
+
+    app.post('/users', async(req, res)=>{
+      const user = req.body;
+      console.log(user);
+      // insert email if user doesnt exist
+      const query = {email: user.email}
+      const existingUser = await userCollection.findOne(query);
+      if(existingUser){
+        return res.send({message: 'user already exists', insertId: null})
+      }
+      const result = await userCollection.insertOne(user);
+      res.send(result);
+    })
+
+    // make a user admin
+    app.patch('/users/admin/:id', async(req, res)=>{
+      const id = req.params.id;
+      const filter ={ _id: new ObjectId(id)};
+      const updatedDoc = {
+        $set: {
+          role: 'admin'
+        }
+      }
+      const result = await userCollection.updateOne(filter, updatedDoc)
+      res.send(result);
+    })
 
     // get biodata and filter
     app.get('/biodatas', async (req, res) => {
@@ -93,6 +132,13 @@ async function run() {
       const result = await favouriteCollection.insertOne(favItem);
       res.send(result);
     });
+
+    // show all favourite biodatas
+    app.get('/favourites', async (req, res) => {
+      const cursor = favouriteCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    })
     
     
 
