@@ -30,6 +30,7 @@ async function run() {
     // await client.connect();
 
     const biodataCollection = client.db('eternalDb').collection('biodatas');
+    const favouriteCollection = client.db('eternalDb').collection('favourites');
 
     // get biodata and filter
     app.get('/biodatas', async (req, res) => {
@@ -56,7 +57,7 @@ async function run() {
         res.status(500).send('Internal Server Error');
       }
     });
-    
+
     // get biodata and filter for biodataType
     app.get('/biodatas', async (req, res) => {
       try {
@@ -84,8 +85,15 @@ async function run() {
       const query = { _id: new ObjectId(id) };
       const result = await biodataCollection.findOne(query);
       res.send(result)
-    })
+    });
 
+    // add one favourite and show error if that one is already added
+    app.post('/favourites', async (req, res) => {
+      const favItem = req.body;
+      const result = await favouriteCollection.insertOne(favItem);
+      res.send(result);
+    });
+    
     
 
 
