@@ -6,10 +6,10 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 //middleware
-const corsOptions ={
-  origin:'http://localhost:5173', 
-  credentials:true,            //access-control-allow-credentials:true
-  optionSuccessStatus:200,
+const corsOptions = {
+  origin: 'http://localhost:5173',
+  credentials: true,            //access-control-allow-credentials:true
+  optionSuccessStatus: 200,
 }
 app.use(cors(corsOptions))
 app.use(express.json());
@@ -37,52 +37,105 @@ async function run() {
     const userCollection = client.db('eternalDb').collection('users');
     const biodataCollection = client.db('eternalDb').collection('biodatas');
     const favouriteCollection = client.db('eternalDb').collection('favourites');
+    const premiumCollection = client.db('eternalDb').collection('makepremium');
 
     // users related API
 
-    app.get('/users', async(req, res)=>{
+    app.get('/users', async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     })
 
     app.get('/user/admin/:email', async (req, res) => {
       try {
-          const email = req.params.email;
-  
-          // Assuming you have a MongoDB collection named 'users'
-          const user = await userCollection.findOne({ email });
-  
-          if (!user) {
-              return res.status(404).json({ error: 'User not found' });
-          }
-  
-          // Check if the user has the admin role
-          const isAdmin = user.role === 'admin';
-  
-          res.json({ isAdmin });
-      } catch (error) {
-          console.error('Error checking admin status:', error);
-          res.status(500).json({ error: 'Internal server error' });
-      }
-  });
+        const email = req.params.email;
 
-    app.post('/users', async(req, res)=>{
+        // Assuming you have a MongoDB collection named 'users'
+        const user = await userCollection.findOne({ email });
+
+        if (!user) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Check if the user has the admin role
+        const isAdmin = user.role === 'admin';
+
+        res.json({ isAdmin });
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    // save a users data
+    app.post('/users', async (req, res) => {
       const user = req.body;
       console.log(user);
       // insert email if user doesnt exist
-      const query = {email: user.email}
+      const query = { email: user.email }
       const existingUser = await userCollection.findOne(query);
-      if(existingUser){
-        return res.send({message: 'user already exists', insertId: null})
+      if (existingUser) {
+        return res.send({ message: 'user already exists', insertId: null })
       }
       const result = await userCollection.insertOne(user);
       res.send(result);
     })
 
+
+    // request for premium from view my biodata page
+    app.post('/premiums', async (req, res) => {
+      const requester = req.body;
+      console.log(requester);
+    
+      // Insert email if the user doesn't exist
+      const query = { contactEmail: requester.contactEmail };
+      const existingUser = await userCollection.findOne(query);
+    
+      if (existingUser) {
+        return res.send({ message: 'user already exists', insertId: null });
+      }
+    
+      const result = await premiumCollection.insertOne(requester);
+      res.send({ message: 'Premium request submitted successfully', insertId: result.insertedId });
+    });
+
+    // get the premium requested users
+    app.get('/premiums', async (req, res) => {
+      const result = await premiumCollection.find().toArray();
+      res.send(result);
+    })
+
+    // make a user premium
+    app.patch('/acceptPremium/:email', async (req, res) => {
+      const email = req.params.email;
+      console.log(email);
+    
+      const filter = { contactEmail: email };
+      const filtertwo = { email: email };
+      const updatedDoc = {
+        $set: {
+          status: 'premium'
+        }
+      };
+    
+      const result = await premiumCollection.updateOne(filter, updatedDoc);
+      const resultOne = await biodataCollection.updateOne(filter, updatedDoc);
+      const resultTwo = await userCollection.updateOne(filtertwo, updatedDoc);
+    
+      res.send({
+        premiumResult: result,
+        biodataResult: resultOne,
+        userResult: resultTwo
+      });
+    });
+    
+
+
+
     // make a user admin
-    app.patch('/users/admin/:id', async(req, res)=>{
+    app.patch('/users/admin/:id', async (req, res) => {
       const id = req.params.id;
-      const filter ={ _id: new ObjectId(id)};
+      const filter = { _id: new ObjectId(id) };
       const updatedDoc = {
         $set: {
           role: 'admin'
@@ -92,32 +145,48 @@ async function run() {
       res.send(result);
     })
 
+    // Define the route with a parameter :email
+    app.get('/biodatas/:email', async (req, res) => {
+      const userEmail = req.params.email;
+      console.log(userEmail);
+      const query = { contactEmail: userEmail };
+      const result = await biodataCollection.findOne(query);
+      console.log(result);
+      res.send(result)
+
+    });
+
+
+    
+
+    
+
     // delete a favourite from user dashboard
-    app.delete('/favourites/:id', async(req, res)=>{
+    app.delete('/favourites/:id', async (req, res) => {
       const id = req.params.id;
-      const query = { _id: new ObjectId(id)}
+      const query = { _id: new ObjectId(id) }
       const result = await favouriteCollection.deleteOne(query);
       res.send(result);
     })
 
-    // // create a biodata if the email is new, if the email exists them upsert it and give an biodataId
-    
+     // create a biodata if the email is new, if the email exists them upsert it and give an biodataId
+
     app.post('/biodatas', async (req, res) => {
       const user = req.body;
       console.log(user);
 
       // Get the total number of documents in the collection
-    const totalBiodatas = await biodataCollection.countDocuments();
+      const totalBiodatas = await biodataCollection.countDocuments();
 
-    // Calculate the new biodata id
-    const newBiodataId = totalBiodatas + 1;
+      // Calculate the new biodata id
+      const newBiodataId = totalBiodatas + 1;
 
-    // Set the new biodata id in the user object
-    biodataId = newBiodataId;
-    
+      // Set the new biodata id in the user object
+      biodataId = newBiodataId;
+
       // Define the query based on the email
       const query = { contactEmail: user.contactEmail };
-    
+
       // Define the update operation
       const update = {
         $set: {
@@ -139,17 +208,17 @@ async function run() {
           expectedPartnerWeight: user.expectedPartnerWeight,
           contactEmail: user.contactEmail,
           mobileNumber: user.mobileNumber,
-          BiodataId: biodataId, 
+          BiodataId: biodataId,
         }
       };
-    
+
       // Set the upsert option to true
       const options = { upsert: true };
-    
+
       try {
         // Use updateOne with upsert option
         const result = await biodataCollection.updateOne(query, update, options);
-    
+
         // Check if the document was inserted or updated
         if (result.upsertedCount > 0) {
           res.send({ message: 'user inserted successfully', insertId: result.upsertedId._id });
@@ -161,13 +230,13 @@ async function run() {
         res.status(500).send({ error: 'Internal Server Error' });
       }
     });
-    
+
 
     // get biodata and filter
     app.get('/biodatas', async (req, res) => {
       try {
         const { minAge, maxAge, biodataType, permanentDivision } = req.query;
-    
+
         // Build the filter object based on the provided query parameters
         const filter = {};
         if (minAge && maxAge) {
@@ -179,7 +248,7 @@ async function run() {
         if (permanentDivision) {
           filter.permanentDivision = permanentDivision;
         }
-    
+
         const cursor = biodataCollection.find(filter);
         const result = await cursor.toArray();
         res.send(result);
@@ -194,10 +263,10 @@ async function run() {
       try {
         const { biodataType } = req.query;
         console.log(biodataType);
-    
+
         // Build the filter object based on the provided query parameters
         const filter = {};
-        
+
         if (biodataType) {
           filter.biodataType = biodataType;
         }
@@ -211,11 +280,13 @@ async function run() {
     });
 
     // get one requested biodata by id
-    app.get('/biodatas/:id', async (req, res) => {
+    app.get('/getbiodatabyid/:id', async (req, res) => {
       const id = req.params.id;
+      console.log(id, '233');
       const query = { _id: new ObjectId(id) };
       const result = await biodataCollection.findOne(query);
-      res.send(result)
+      console.log(result, 'result 236');
+      res.send(result);
     });
 
     // add one favourite and show error if that one is already added
@@ -231,8 +302,8 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     })
-    
-    
+
+
 
 
 
@@ -253,9 +324,9 @@ run().catch(console.dir);
 
 
 app.get('/', (req, res) => {
-    res.send('eternal-ties is running')
-  })
-  
-  app.listen(port, () => {
-    console.log(`eternal-ties server is running on ${port}`);
-  })
+  res.send('eternal-ties is running')
+})
+
+app.listen(port, () => {
+  console.log(`eternal-ties server is running on ${port}`);
+})
