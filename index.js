@@ -1,7 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-require('dotenv').config()
+require('dotenv').config();
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -279,6 +280,17 @@ async function run() {
       }
     });
 
+    // get premium biodatas
+    app.get('/premiumBiodatas', async (req, res) => {
+      try {
+        const premiumBiodatas = await biodataCollection.find({ status: 'premium' }).toArray();
+        res.send(premiumBiodatas);
+      } catch (error) {
+        console.error('Error fetching premium biodatas:', error);
+        res.status(500).send({ error: 'Internal server error' });
+      }
+    });
+
     // get one requested biodata by id
     app.get('/getbiodatabyid/:id', async (req, res) => {
       const id = req.params.id;
@@ -303,8 +315,52 @@ async function run() {
       res.send(result);
     })
 
+    // success counter data
+    
+app.get('/successCounter', async (req, res) => {
+  try {
+    // Total biodata count
+    const totalBiodataCount = await biodataCollection.countDocuments();
+
+    // Gender-wise biodata count
+    const maleBiodataCount = await biodataCollection.countDocuments({ biodataType: 'male' });
+    const femaleBiodataCount = await biodataCollection.countDocuments({ biodataType: 'female' });
+
+    
+
+    res.send({
+      totalBiodataCount,
+      maleBiodataCount,
+      femaleBiodataCount,
+      
+    });
+  } catch (error) {
+    console.error('Error fetching success counter data:', error);
+    res.status(500).send({ error: 'Internal server error' });
+  }
+});
 
 
+
+
+    // stripe
+
+    app.get('/create-payment-intent', async(req, res)=>{
+      const {price} = '500';
+      const amount = parseInt(price * 100);
+      console.log(amount, 'from line 314');
+
+      const paymentIntent = await stripe.paymentIntent.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card']
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      })
+
+    })
 
 
 
