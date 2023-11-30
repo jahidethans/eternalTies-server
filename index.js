@@ -45,6 +45,27 @@ async function run() {
       res.send(result);
     })
 
+    app.get('/user/admin/:email', async (req, res) => {
+      try {
+          const email = req.params.email;
+  
+          // Assuming you have a MongoDB collection named 'users'
+          const user = await userCollection.findOne({ email });
+  
+          if (!user) {
+              return res.status(404).json({ error: 'User not found' });
+          }
+  
+          // Check if the user has the admin role
+          const isAdmin = user.role === 'admin';
+  
+          res.json({ isAdmin });
+      } catch (error) {
+          console.error('Error checking admin status:', error);
+          res.status(500).json({ error: 'Internal server error' });
+      }
+  });
+
     app.post('/users', async(req, res)=>{
       const user = req.body;
       console.log(user);
