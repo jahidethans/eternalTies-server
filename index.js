@@ -92,20 +92,16 @@ async function run() {
       res.send(result);
     })
 
-    // // create a biodata if the email is new, if the email exists them upsert it
-    // app.post('/biodatas', async(req, res)=>{
-    //   const user = req.body;
-    //   console.log(user);
-    //   // insert email if user doesnt exist
-    //   const query = {contactEmail: user.contactEmail}
-    //   const existingUser = await biodataCollection.findOne(query);
-    //   if(existingUser){
-    //     return res.send({message: 'user already exists', insertId: null})
-    //   }
-    //   const result = await biodataCollection.insertOne(user);
-    //   res.send(result);
-    // })
+    // delete a favourite from user dashboard
+    app.delete('/favourites/:id', async(req, res)=>{
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id)}
+      const result = await favouriteCollection.deleteOne(query);
+      res.send(result);
+    })
 
+    // // create a biodata if the email is new, if the email exists them upsert it and give an biodataId
+    
     app.post('/biodatas', async (req, res) => {
       const user = req.body;
       console.log(user);
