@@ -92,6 +92,81 @@ async function run() {
       res.send(result);
     })
 
+    // // create a biodata if the email is new, if the email exists them upsert it
+    // app.post('/biodatas', async(req, res)=>{
+    //   const user = req.body;
+    //   console.log(user);
+    //   // insert email if user doesnt exist
+    //   const query = {contactEmail: user.contactEmail}
+    //   const existingUser = await biodataCollection.findOne(query);
+    //   if(existingUser){
+    //     return res.send({message: 'user already exists', insertId: null})
+    //   }
+    //   const result = await biodataCollection.insertOne(user);
+    //   res.send(result);
+    // })
+
+    app.post('/biodatas', async (req, res) => {
+      const user = req.body;
+      console.log(user);
+
+      // Get the total number of documents in the collection
+    const totalBiodatas = await biodataCollection.countDocuments();
+
+    // Calculate the new biodata id
+    const newBiodataId = totalBiodatas + 1;
+
+    // Set the new biodata id in the user object
+    biodataId = newBiodataId;
+    
+      // Define the query based on the email
+      const query = { contactEmail: user.contactEmail };
+    
+      // Define the update operation
+      const update = {
+        $set: {
+          biodataType: user.biodataType,
+          name: user.name,
+          image: user.image,
+          dateOfBirth: user.dateOfBirth,
+          height: user.height,
+          weight: user.weight,
+          age: user.age,
+          occupation: user.occupation,
+          race: user.race,
+          fathersName: user.fathersName,
+          mothersName: user.mothersName,
+          permanentDivision: user.permanentDivision,
+          presentDivision: user.presentDivision,
+          expectedPartnerAge: user.expectedPartnerAge,
+          expectedPartnerHeight: user.expectedPartnerHeight,
+          expectedPartnerWeight: user.expectedPartnerWeight,
+          contactEmail: user.contactEmail,
+          mobileNumber: user.mobileNumber,
+          BiodataId: biodataId, 
+        }
+      };
+    
+      // Set the upsert option to true
+      const options = { upsert: true };
+    
+      try {
+        // Use updateOne with upsert option
+        const result = await biodataCollection.updateOne(query, update, options);
+    
+        // Check if the document was inserted or updated
+        if (result.upsertedCount > 0) {
+          res.send({ message: 'user inserted successfully', insertId: result.upsertedId._id });
+        } else {
+          res.send({ message: 'user updated successfully', insertId: null });
+        }
+      } catch (error) {
+        console.log(error);
+        res.status(500).send({ error: 'Internal Server Error' });
+      }
+    });
+    
+
     // get biodata and filter
     app.get('/biodatas', async (req, res) => {
       try {
